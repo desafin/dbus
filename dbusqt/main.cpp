@@ -1,22 +1,34 @@
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
 
+#include <QCoreApplication>
+#include <QDBusMessage>
+#include <QDBusConnection>
+#include <QDebug>
 
-int main(int argc, char *argv[])
-{
-#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
-    QCoreApplication::setAttribute(Qt::AA_EnableHighDpiScaling);
-#endif
-    QGuiApplication app(argc, argv);
 
-    QQmlApplicationEngine engine;
-    const QUrl url(QStringLiteral("qrc:/main.qml"));
-    QObject::connect(&engine, &QQmlApplicationEngine::objectCreated,
-        &app, [url](QObject *obj, const QUrl &objUrl) {
-            if (!obj && url == objUrl)
-                QCoreApplication::exit(-1);
-        }, Qt::QueuedConnection);
-    engine.load(url);
+#define SERVICE_NAME "com.example.mydbus.service"
+#define OBJECT_PATH "/com/example/mydbus/object"
+#define INTERFACE_NAME "com.example.mydbus.interface"
+
+int main(int argc, char *argv[]) {
+    QCoreApplication app(argc, argv);
+
+    // D-Bus 서비스 등록
+    if (!QDBusConnection::systemBus().registerService(SERVICE_NAME)) {
+        qDebug() << "D-Bus 서비스 등록 실패";
+        return -1;
+    }
+
+    // D-Bus 오브젝트 등록
+    QObject myObject;
+    QDBusConnection::systemBus().registerObject(OBJECT_PATH, &myObject);
+
+    // D-Bus 시그널 보내기
+    QDBusMessage signal = QDBusMessage::createSignal(OBJECT_PATH, INTERFACE_NAME, "mySignal");
+    signal << QString("Hello, D-Bus!");
+    QDBusConnection::systemBus().send(signal);
 
     return app.exec();
 }
+
